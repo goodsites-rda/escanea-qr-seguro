@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const API_KEY = 'TU_API_KEY_GOOGLE_SAFE_BROWSING';
+const API_KEY = 'AIzaSyCdYBZhwOmX4doQpBu9fn7poEoy0QoMbgA';
 
 exports.checkUrlSafety = async (url) => {
   try {

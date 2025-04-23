@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analizador de QR</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; text-align: center; }
+    input { margin-top: 1rem; }
+    #resultado { margin-top: 2rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Analiza un código QR</h1>
+  <form id="formulario">
+    <input type="file" accept="image/*" name="qr" required />
+    <br />
+    <button type="submit">Analizar</button>
+  </form>
+  <div id="resultado"></div>
+
+  <script>
+    document.getElementById('formulario').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+
+      document.getElementById('resultado').textContent = 'Analizando...';
+
+      const res = await fetch('/scan', {
+        method: 'POST',
+        body: data,
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        const { type, value, safety } = json.data;
+        document.getElementById('resultado').textContent =
+          `Contenido: ${value}\nTipo: ${type}\nSeguridad: ${safety}`;
+      } else {
+        document.getElementById('resultado').textContent = 'No se pudo analizar el código QR.';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,39 +1,45 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
-const { decodeQR } = require('./services/qrDecode');
-const { checkUrlSafety } = require('./services/safeBrowsing');
 const cors = require('cors');
+const path = require('path');
+const decodeQR = require('./services/qrDecode');
+const checkURLWithGoogle = require('./services/safeBrowsing');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = 3000;
+
 app.use(cors());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+// Configuración de multer para recibir archivos
 const upload = multer({ dest: 'uploads/' });
 
-app.post('/scan', upload.single('qr'), async (req, res) => {
+// Ruta para analizar QR
+app.post('/api/check-qr', upload.single('qr'), async (req, res) => {
   try {
-    const filePath = req.file.path;
-    const result = await decodeQR(filePath);
-    fs.unlinkSync(filePath);
+    const qrPath = req.file.path;
 
-    if (!result) return res.json({ success: false, message: 'No se pudo leer el código QR.' });
+    // Leer y decodificar QR
+    const decodedURL = await decodeQR(qrPath);
 
-    let analysis = { type: 'text', value: result, safety: 'safe' };
-    if (result.startsWith('http')) {
-      analysis.type = 'url';
-      const isSafe = await checkUrlSafety(result);
-      analysis.safety = isSafe ? 'safe' : 'malicious';
-    } else if (/(javascript:|data:|<script>)/i.test(result)) {
-      analysis.safety = 'suspicious';
+    if (!decodedURL || !decodedURL.startsWith('http')) {
+      return res.status(400).json({ error: 'El QR no contiene una URL válida.' });
     }
 
-    res.json({ success: true, data: analysis });
+    // Verificar si es malicioso
+    const isMalicious = await checkURLWithGoogle(decodedURL);
+
+    res.json({
+      url: decodedURL,
+      isMalicious: isMalicious
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Error procesando el código QR.' });
+    console.error('Error procesando el QR:', err.message);
+    res.status(500).json({ error: 'Error al analizar el código QR.' });
   }
 });
 
-app.listen(port, () => console.log(`Servidor corriendo en http://localhost:${port}`));
+// Iniciar servidor
+app.listen(port, () => {
+  console.log(`Servidor backend corriendo en http://localhost:${port}`);
+});

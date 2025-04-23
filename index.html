@@ -1,44 +1,61 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Analizador de QR</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; text-align: center; }
-    input { margin-top: 1rem; }
-    #resultado { margin-top: 2rem; font-weight: bold; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escáner QR Seguro</title>
 </head>
 <body>
-  <h1>Analiza un código QR</h1>
-  <form id="formulario">
-    <input type="file" accept="image/*" name="qr" required />
-    <br />
-    <button type="submit">Analizar</button>
+  <h1>Escanea un código QR</h1>
+  <form id="qrForm" enctype="multipart/form-data">
+    <input type="file" id="qrFile" name="qr" accept="image/*" required>
+    <button type="submit">Subir QR</button>
   </form>
-  <div id="resultado"></div>
+
+  <h2>Resultado:</h2>
+  <p id="result"></p>
+  <p id="url"></p>
 
   <script>
-    document.getElementById('formulario').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const data = new FormData(form);
+    document.getElementById('qrForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const qrFile = document.getElementById('qrFile').files[0];
 
-      document.getElementById('resultado').textContent = 'Analizando...';
+      if (!qrFile) {
+        alert('Por favor selecciona un archivo QR');
+        return;
+      }
 
-      const res = await fetch('/scan', {
-        method: 'POST',
-        body: data,
-      });
-      const json = await res.json();
+      // Preparar la solicitud con FormData
+      const formData = new FormData();
+      formData.append("qr", qrFile);
 
-      if (json.success) {
-        const { type, value, safety } = json.data;
-        document.getElementById('resultado').textContent =
-          `Contenido: ${value}\nTipo: ${type}\nSeguridad: ${safety}`;
-      } else {
-        document.getElementById('resultado').textContent = 'No se pudo analizar el código QR.';
+      try {
+        // Enviar la imagen al backend
+        const response = await fetch('http://localhost:3000/api/check-qr', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Error en la respuesta del servidor');
+        }
+
+        const data = await response.json();
+
+        // Mostrar el resultado
+        if (data.url) {
+          document.getElementById('url').innerText = `URL: ${data.url}`;
+          document.getElementById('result').innerText = data.isMalicious 
+            ? '¡Advertencia! La URL es maliciosa.' 
+            : 'La URL es segura.';
+        } else {
+          document.getElementById('result').innerText = 'No se encontró URL en el código QR.';
+        }
+
+      } catch (error) {
+        console.error('Error al procesar el QR:', error);
+        document.getElementById('result').innerText = 'Error al analizar el código QR.';
       }
     });
   </script>
